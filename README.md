@@ -4,7 +4,7 @@ Compare two different directories and generate html report
 ## Example
 Two directories with different versions as below:
 
-![image](https://user-images.githubusercontent.com/8114921/235129035-97f64dd0-2151-4280-8330-2f9687045871.png)
+![image](https://user-images.githubusercontent.com/8114921/235133530-c3d211fb-cddf-4a90-ab21-c9f3f1735796.png)
 
 Run the following script
 ```
