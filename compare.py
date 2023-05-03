@@ -5,6 +5,13 @@ import time
 import html
 import argparse
 
+def get_ruler_span(ruler = '&nbsp;', color = '#8080808a'):
+    return f"""
+        <div style='color: {color}; display: inline-flex; width: 20px; margin-right: 5px; justify-content: center'>
+            &nbsp;{ruler}&nbsp;
+        </div>
+    """
+
 def compare_dirs(dir1, dir2, output_file):
     style = """
     <style>
@@ -25,6 +32,7 @@ def compare_dirs(dir1, dir2, output_file):
         }
         .twenty {
             width: 20%;
+            vertical-align: top;
         }
         /* see me */
         td {
@@ -33,7 +41,10 @@ def compare_dirs(dir1, dir2, output_file):
         }
 
         tr.file-not-found {
-            background:rgba(255,255,0,0.2);
+            background:rgba(255,153,0,0.4);
+        }
+        tr.file-no-change {
+            background:rgba(0,255,0,0.2);
         }
     </style>
     """
@@ -107,20 +118,33 @@ def compare_dirs(dir1, dir2, output_file):
                 table_rows.append(f"<tr class='file-not-found'><td class='ten'>{file_path1}</td><td class='twenty'><span style='color: red;'>File not found in '{dir2}'</span></td><td class='twenty'></td></tr>")
                 continue
 
-            if not filecmp.cmp(file_path1, file_path2, shallow=False):
+            if filecmp.cmp(file_path1, file_path2, shallow=False):
+                table_rows.append(f"<tr class='file-no-change'><td class='ten'>{file_path1}</td><td class='twenty'><span>No change</span></td><td class='twenty'></td><span>No change</span></tr>")
+            else:
                 with open(file_path1) as f1, open(file_path2) as f2:
                     diff1, diff2 = [], []
                     diff = list(difflib.unified_diff(f1.readlines(), f2.readlines(), fromfile=file_path1, tofile=file_path2, lineterm='', n=3))
                     for line in diff:
+                        print('line: ', line)
                         if line.startswith('---') or line.startswith('+++'):
                             pass
+                        elif line.startswith('@@'):
+                            tokens = line.split(' ')
+                            # filter out the line numbers
+                            text = f'Removed at {tokens[1]}, Added at {tokens[2]}'
+                            diff1.append(f"<hr><span style='color: grey;'>&nbsp;{html.escape(text)}</span><br>")
+                            diff2.append(f"<hr><span style='color: grey;'>&nbsp;{html.escape(text)}</span><br>")
                         elif line.startswith('+'):
-                            diff2.append(f"<span style='color: green;'>{html.escape(line)}</span>")
+                            diff1.append(f'{get_ruler_span()}&nbsp;')
+                            diff2.append(f"{get_ruler_span(line[0], '#008000a0')}<span style='color: green;'>{html.escape(line[1:])}</span>")
                         elif line.startswith('-'):
-                            diff1.append(f"<span style='color: red;'>{html.escape(line)}</span>")
+                            diff1.append(f"{get_ruler_span(line[0], '#ff000080')}<span style='color: red;'>{html.escape(line[1:])}</span>")
+                            diff2.append(f'{get_ruler_span()}&nbsp;')
                         else:
-                            diff1.append(html.escape(line))
-                            diff2.append(html.escape(line))
+                            print('no diff' , line[0], line)
+                            text = f"{get_ruler_span('=')}{html.escape(line[1:])}"
+                            diff1.append(text)
+                            diff2.append(text)
 
                     table_rows.append(f"<tr><td class='ten'>{file_path1}</td><td class='twenty'>{'<br>'.join(diff1)}</td><td class='twenty'>{'<br>'.join(diff2)}</td></tr>")
 
