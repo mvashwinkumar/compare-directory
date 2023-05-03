@@ -100,8 +100,8 @@ def compare_dirs(dir1, dir2, output_file):
         <table id='comparisonTable' border='1' class='fixTableHead'>
             <thead>
                 <th class='ten'>File Path</th>
-                <th class='twenty'>Directory 1: {dir1}</th>
-                <th class='twenty'>Directory 2: {dir2}</th>
+                <th class='twenty'>Directory 1 (old): {dir1}</th>
+                <th class='twenty'>Directory 2 (new): {dir2}</th>
             </thead>
             <tbody>
         """
@@ -121,19 +121,15 @@ def compare_dirs(dir1, dir2, output_file):
             if filecmp.cmp(file_path1, file_path2, shallow=False):
                 table_rows.append(f"<tr class='file-no-change'><td class='ten'>{file_path1}</td><td class='twenty'><span>No change</span></td><td class='twenty'><span>No change</span></td></tr>")
             else:
-                with open(file_path1) as f1, open(file_path2) as f2:
+                with open(file_path1, encoding='utf8') as f1, open(file_path2, encoding='utf8') as f2:
                     diff1, diff2 = [], []
                     diff = list(difflib.unified_diff(f1.readlines(), f2.readlines(), fromfile=file_path1, tofile=file_path2, lineterm='', n=3))
                     for line in diff:
-                        print('line: ', line)
                         if line.startswith('---') or line.startswith('+++'):
                             pass
                         elif line.startswith('@@'):
-                            tokens = line.split(' ')
-                            # filter out the line numbers
-                            text = f'Removed at {tokens[1]}, Added at {tokens[2]}'
-                            diff1.append(f"<hr><span style='color: grey;'>&nbsp;{html.escape(text)}</span><br>")
-                            diff2.append(f"<hr><span style='color: grey;'>&nbsp;{html.escape(text)}</span><br>")
+                            diff1.append(f"<hr><span style='color: grey;'>&nbsp;{html.escape(line)}</span><br>")
+                            diff2.append(f"<hr><span style='color: grey;'>&nbsp;{html.escape(line)}</span><br>")
                         elif line.startswith('+'):
                             diff1.append(f'{get_ruler_span()}&nbsp;')
                             diff2.append(f"{get_ruler_span(line[0], '#008000a0')}<span style='color: green;'>{html.escape(line[1:])}</span>")
@@ -141,7 +137,6 @@ def compare_dirs(dir1, dir2, output_file):
                             diff1.append(f"{get_ruler_span(line[0], '#ff000080')}<span style='color: red;'>{html.escape(line[1:])}</span>")
                             diff2.append(f'{get_ruler_span()}&nbsp;')
                         else:
-                            print('no diff' , line[0], line)
                             text = f"{get_ruler_span('=')}{html.escape(line[1:])}"
                             diff1.append(text)
                             diff2.append(text)
