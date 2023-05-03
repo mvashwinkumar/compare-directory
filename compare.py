@@ -119,7 +119,7 @@ def compare_dirs(dir1, dir2, output_file):
                 continue
 
             if filecmp.cmp(file_path1, file_path2, shallow=False):
-                table_rows.append(f"<tr class='file-no-change'><td class='ten'>{file_path1}</td><td class='twenty'><span>No change</span></td><td class='twenty'></td><span>No change</span></tr>")
+                table_rows.append(f"<tr class='file-no-change'><td class='ten'>{file_path1}</td><td class='twenty'><span>No change</span></td><td class='twenty'><span>No change</span></td></tr>")
             else:
                 with open(file_path1) as f1, open(file_path2) as f2:
                     diff1, diff2 = [], []
