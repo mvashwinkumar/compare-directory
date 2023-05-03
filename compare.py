@@ -12,7 +12,7 @@ def get_ruler_span(ruler = '&nbsp;', color = '#8080808a'):
         </div>
     """
 
-def compare_dirs(dir1, dir2, output_file):
+def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[]):
     style = """
     <style>
         table {
@@ -40,6 +40,9 @@ def compare_dirs(dir1, dir2, output_file):
             word-wrap:break-word
         }
 
+        tr.file-ignored {
+            background: #8080808a;
+        }
         tr.file-not-found {
             background:rgba(255,153,0,0.4);
         }
@@ -117,8 +120,10 @@ def compare_dirs(dir1, dir2, output_file):
             if not os.path.exists(file_path2):
                 table_rows.append(f"<tr class='file-not-found'><td class='ten'>{file_path1}</td><td class='twenty'><span style='color: red;'>File not found in '{dir2}'</span></td><td class='twenty'></td></tr>")
                 continue
-
-            if filecmp.cmp(file_path1, file_path2, shallow=False):
+            
+            if os.path.splitext(file_path1)[1][1:] in ignore_file_extensions:
+                table_rows.append(f"<tr class='file-ignored'><td class='ten'>{file_path1}</td><td class='twenty'><span>Ignored</span></td><td class='twenty'><span>Ignored</span></td></tr>")
+            elif filecmp.cmp(file_path1, file_path2, shallow=False):
                 table_rows.append(f"<tr class='file-no-change'><td class='ten'>{file_path1}</td><td class='twenty'><span>No change</span></td><td class='twenty'><span>No change</span></td></tr>")
             else:
                 with open(file_path1, encoding='utf8') as f1, open(file_path2, encoding='utf8') as f2:
@@ -162,17 +167,18 @@ def compare_dirs(dir1, dir2, output_file):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='Compare two directories and generate an HTML report',
-        usage='python compare_directories.py path/to/first/directory path/to/second/directory -o my_differences.html'
+        usage='python compare_directories.py path/to/first/directory path/to/second/directory -i war jar -o my_differences.html'
     )
     parser.add_argument('dir1', help='Path to the first directory.')
     parser.add_argument('dir2', help='Path to the second directory.')
     parser.add_argument('-o', '--output', default='differences.html', help='Path to the output file (default: differences.html).')
+    parser.add_argument('-i', '--ignore', nargs='+', default=['war', 'jar'], help='List of file extensions to ignore (default: war jar).')
 
     args = parser.parse_args()
 
     # get the start time
     st = time.time()
-    compare_dirs(args.dir1, args.dir2, args.output)
+    compare_dirs(args.dir1, args.dir2, args.output, ignore_file_extensions=args.ignore)
     # get the end time
     et = time.time()
     # get the execution time
