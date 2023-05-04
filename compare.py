@@ -26,6 +26,7 @@ def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[]):
         .fixTableHead thead th {
             position: sticky;
             top: 0;
+            word-wrap:break-word;
         }
         .ten {
             width: 10%;
@@ -48,6 +49,19 @@ def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[]):
         }
         tr.file-no-change {
             background:rgba(0,255,0,0.2);
+        }
+        .unselectable {
+            opacity: 0;
+            -moz-user-select: none;
+            -khtml-user-select: none;
+            -webkit-user-select: none;
+
+            /*
+                Introduced in Internet Explorer 10.
+                See http://ie.microsoft.com/testdrive/HTML5/msUserSelect/
+            */
+            -ms-user-select: none;
+            user-select: none;
         }
     </style>
     """
@@ -136,11 +150,11 @@ def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[]):
                             diff1.append(f"<hr><span style='color: grey;'>&nbsp;{html.escape(line)}</span><br>")
                             diff2.append(f"<hr><span style='color: grey;'>&nbsp;{html.escape(line)}</span><br>")
                         elif line.startswith('+'):
-                            diff1.append(f'{get_ruler_span()}&nbsp;')
+                            diff1.append(f'{get_ruler_span()}<span class="unselectable">{html.escape(line[1:])}</span>')
                             diff2.append(f"{get_ruler_span(line[0], '#008000a0')}<span style='color: green;'>{html.escape(line[1:])}</span>")
                         elif line.startswith('-'):
                             diff1.append(f"{get_ruler_span(line[0], '#ff000080')}<span style='color: red;'>{html.escape(line[1:])}</span>")
-                            diff2.append(f'{get_ruler_span()}&nbsp;')
+                            diff2.append(f'{get_ruler_span()}<span class="unselectable">{html.escape(line[1:])}</span>')
                         else:
                             text = f"{get_ruler_span('=')}{html.escape(line[1:])}"
                             diff1.append(text)
