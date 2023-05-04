@@ -49,6 +49,9 @@ def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[]):
             width: 37.5%;
             vertical-align: top;
         }
+        td.twenty > hr:first-child {
+            display: none;
+        }
         /* see me */
         td {
             border: solid;
