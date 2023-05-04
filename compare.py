@@ -97,7 +97,6 @@ def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[]):
                 let td = tr[i].getElementsByTagName('td')[1];
                 if (td) {
                     let txtValue = td.textContent || td.innerText;
-                    console.log(td.textContent, td.innerText, txtValue, value)
                     if (txtValue.toUpperCase().includes(value.toUpperCase())) {
                         let option = document.createElement('option');
                         option.value = txtValue.trim();
