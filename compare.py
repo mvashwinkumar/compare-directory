@@ -268,7 +268,25 @@ def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[]):
         </script>
     """
 
-    html_output = style + stats_div + search_bar + table_header + "\n".join(table_rows) + table_footer + script_tag
+    html_output = f"""
+        <!DOCTYPE html>
+        <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+                <title>Directory Comparison Report</title>
+                {style}
+            </head>
+            <body>
+                {stats_div}
+                {search_bar}
+                {table_header}
+                {''.join(table_rows)}
+                {table_footer}
+                {script_tag}
+            </body>
+        </html>
+    """
 
     with open(output_file, 'w') as f:
         f.write(html_output)
