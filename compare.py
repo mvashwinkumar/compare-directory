@@ -40,6 +40,7 @@ def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[]):
         .small {
             width: 1.5rem;
             vertical-align: top;
+            text-align: center;
         }
         .ten {
             vertical-align: top;
