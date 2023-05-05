@@ -4,6 +4,7 @@ import difflib
 import time
 import html
 import argparse
+import hashlib
 
 def get_ruler_span(ruler = '&nbsp;', color = '#8080808a'):
     return f"""
@@ -11,6 +12,34 @@ def get_ruler_span(ruler = '&nbsp;', color = '#8080808a'):
             &nbsp;{ruler}&nbsp;
         </div>
     """
+def get_file_properties_table(file_path, show_md5_hash = False):
+    md5_hash_tr = f"""
+        <tr>
+            <td>MD5 Hash</td>
+            <td>{hashlib.md5(open(file_path,'rb').read()).hexdigest()}</td>
+        </tr>
+    """ if show_md5_hash else ""
+
+    return f"""
+        <table class='no-border'>
+            <tr>
+                <td>File size</td>
+                <td>{sizeof_fmt(os.path.getsize(file_path))}</td>
+            </tr>
+            <tr>
+                <td>Last modified time</td>
+                <td>{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(os.path.getmtime(file_path)))}</td>
+            </tr>
+            {md5_hash_tr}
+        </table>
+    """
+
+def sizeof_fmt(num, suffix="B"):
+    for unit in ["", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi"]:
+        if abs(num) < 1024.000:
+            return f"{num:3.3f}{unit}{suffix}"
+        num /= 1024.000
+    return f"{num:.1f}Yi{suffix}"
 
 def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[]):
     stats = {
@@ -49,10 +78,9 @@ def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[]):
             width: 37.5%;
             vertical-align: top;
         }
-        td.twenty > hr:first-child {
-            display: none;
+        table.no-border td {
+            border: none;
         }
-        /* see me */
         td {
             border: solid;
             word-wrap:break-word
@@ -163,7 +191,7 @@ def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[]):
             
             if os.path.splitext(file_path1)[1][1:] in ignore_file_extensions:
                 stats['ignored'] += 1
-                table_rows.append(f"<tr class='file-ignored'><td class='small'></td><td class='ten'>{file_path1}</td><td class='twenty' colspan='2' style='text-align: center;'><span>Ignored</span></td></tr>")
+                table_rows.append(f"<tr class='file-ignored'><td class='small'></td><td class='ten'>{file_path1}</td><td class='twenty'><span>{get_file_properties_table(file_path1, show_md5_hash=True)}</span></td><td class='twenty'><span>{get_file_properties_table(file_path2, show_md5_hash=True)}</span></td></tr>")
             elif filecmp.cmp(file_path1, file_path2, shallow=False):
                 stats['identical'] += 1
                 table_rows.append(f"<tr class='file-no-change'><td class='small'></td><td class='ten'>{file_path1}</td><td class='twenty' colspan='2' style='text-align: center;'><span>No change</span></td></tr>")
@@ -194,11 +222,16 @@ def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[]):
                         <td class='ten'>
                             {file_path1}
                         </td>
-                        <td class='twenty'>{'<br>'.join(diff1)}</td>
-                        <td class='twenty'>{'<br>'.join(diff2)}</td>
+                        <td class='twenty'>
+                            {get_file_properties_table(file_path1)}
+                            {'<br>'.join(diff1)}
+                        </td>
+                        <td class='twenty'>
+                            {get_file_properties_table(file_path2)}
+                            {'<br>'.join(diff2)}
+                        </td>
                     </tr>
                     """)
-                    # table_rows.append(f"<tr><td class='ten'>{file_path1}</td><td class='twenty'>{'<br>'.join(diff1)}</td><td class='twenty'>{'<br>'.join(diff2)}</td></tr>")
 
     for root2, dirs2, files2 in os.walk(dir2):
         root1 = root2.replace(dir2, dir1)
