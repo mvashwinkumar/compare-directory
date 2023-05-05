@@ -6,6 +6,77 @@ import html
 import argparse
 import hashlib
 
+from difflib import SequenceMatcher
+from difflib import Differ
+
+class UnifiedDiffer(Differ):
+    def unified_diff(self, a, b, fromfile='', tofile='', fromfiledate='',
+                 tofiledate='', n=3, lineterm='\n'):
+        r"""
+        Compare two sequences of lines; generate the resulting delta, in unified
+        format
+
+        Each sequence must contain individual single-line strings ending with
+        newlines. Such sequences can be obtained from the `readlines()` method
+        of file-like objects.  The delta generated also consists of newline-
+        terminated strings, ready to be printed as-is via the writeline()
+        method of a file-like object.
+
+        Example:
+
+        >>> print ''.join(Differ().unified_diff('one\ntwo\nthree\n'.splitlines(1),
+        ...                                'ore\ntree\nemu\n'.splitlines(1)),
+        ...                                'old.txt', 'new.txt', 'old-date', 'new-date'),
+        --- old.txt    old-date
+        +++ new.txt    new-date
+        @@ -1,5 +1,5 @@
+          context1
+        - one
+        ?  ^
+        + ore
+        ?  ^
+        - two
+        - three
+        ?  -
+        + tree
+        + emu
+          context2
+        """
+
+        started = False
+        for group in SequenceMatcher(None,a,b).get_grouped_opcodes(n):
+            if not started:
+                fromdate = '\t%s' % fromfiledate if fromfiledate else ''
+                todate = '\t%s' % tofiledate if tofiledate else ''
+                yield '--- %s%s%s' % (fromfile, fromdate, lineterm)
+                yield '+++ %s%s%s' % (tofile, todate, lineterm)
+                started = True
+            i1, i2, j1, j2 = group[0][1], group[-1][2], group[0][3], group[-1][4]
+            yield "@@ -%d,%d +%d,%d @@%s" % (i1+1, i2-i1, j1+1, j2-j1, lineterm)
+            for tag, i1, i2, j1, j2 in group:
+                if tag == 'replace':
+                    for line in a[i1:i2]:
+                        g = self._fancy_replace(a, i1, i2, b, j1, j2)
+                elif tag == 'equal':
+                    for line in a[i1:i2]:
+                        g = self._dump(' ', a, i1, i2)
+                    if n > 0:
+                        for line in g:
+                            yield line
+                    continue
+                elif tag == 'delete':
+                    for line in a[i1:i2]:
+                        g = self._dump('-', a, i1, i2)
+                elif tag == 'insert':
+                    for line in b[j1:j2]:
+                        g = self._dump('+', b, j1, j2)
+                else:
+                    raise ValueError
+
+                for line in g:
+                    yield line
+
+
 def get_ruler_span(ruler = '&nbsp;', color = '#8080808a'):
     return f"""
         <div style='color: {color}; display: inline-flex; width: 20px; margin-right: 5px; justify-content: center'>
@@ -41,7 +112,7 @@ def sizeof_fmt(num, suffix="B"):
         num /= 1024.000
     return f"{num:.1f}Yi{suffix}"
 
-def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[], nlines=3):
+def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[], nlines=3, diff_mode='native'):
     stats = {
         'total': 0,
         'ignored': 0,
@@ -231,19 +302,33 @@ def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[], nlines=3):
                 stats['changed'] += 1
                 with open(file_path1, encoding='utf8') as f1, open(file_path2, encoding='utf8') as f2:
                     diff1, diff2 = [], []
-                    diff = list(difflib.unified_diff(f1.readlines(), f2.readlines(), fromfile=file_path1, tofile=file_path2, lineterm='', n=nlines))
+                    if diff_mode == 'custom':
+                        diff = list(UnifiedDiffer().unified_diff(f1.readlines(), f2.readlines(), fromfile=file_path1, tofile=file_path2, lineterm='', n=nlines))
+                    else:
+                        diff = list(difflib.unified_diff(f1.readlines(), f2.readlines(), fromfile=file_path1, tofile=file_path2, lineterm='', n=nlines)) 
+                    last_change_line = None
                     for line in diff:
-                        if line.startswith('---') or line.startswith('+++'):
+                        if line.startswith('---') or line.startswith('+++') or line.endswith('-----\n') or line.endswith('+++++\n'):
                             pass
                         elif line.startswith('@@'):
                             diff1.append(f"<hr><span style='color: grey;'>&nbsp;{html.escape(line)}</span><br>")
                             diff2.append(f"<hr><span style='color: grey;'>&nbsp;{html.escape(line)}</span><br>")
                         elif line.startswith('+'):
+                            last_change_line = line
                             diff1.append(f'{get_ruler_span()}<span class="unselectable">{html.escape(line[1:])}</span>')
                             diff2.append(f"{get_ruler_span(line[0], '#008000a0')}<span style='color: green;'>{html.escape(line[1:])}</span>")
                         elif line.startswith('-'):
+                            last_change_line = line
                             diff1.append(f"{get_ruler_span(line[0], '#ff000080')}<span style='color: red;'>{html.escape(line[1:])}</span>")
                             diff2.append(f'{get_ruler_span()}<span class="unselectable">{html.escape(line[1:])}</span>')
+                        elif line.startswith('?'):
+                            nonBreakSpace = '<span class="unselectable">_</span>'
+                            if last_change_line[0] == '+':
+                                diff1.append(f'{get_ruler_span()}<span class="unselectable">{html.escape(last_change_line[1:])}</span>')
+                                diff2.append(f"{get_ruler_span(line[0], '#00800080')}<span style='color: green;'>{html.escape(line[1:]).replace(' ', nonBreakSpace)}</span>")
+                            elif last_change_line[0] == '-':
+                                diff1.append(f"{get_ruler_span(line[0], '#ff000080')}<span style='color: red;'>{html.escape(line[1:]).replace(' ', nonBreakSpace)}</span>")
+                                diff2.append(f'{get_ruler_span()}<span class="unselectable">{html.escape(last_change_line[1:])}</span>')
                         else:
                             text = f"{get_ruler_span('=')}{html.escape(line[1:])}"
                             diff1.append(text)
@@ -374,12 +459,13 @@ if __name__ == "__main__":
     parser.add_argument('-o', '--output', default='differences.html', help='Path to the output file (default: differences.html).')
     parser.add_argument('--hash', nargs='+', default=['war', 'jar', 'jks'], help='List of file extensions to do MD5 Hash Compare (default: war jar jks).')
     parser.add_argument('-n', '--nlines', type=int, default=3, help='Number of unchanged lines to show above and below diff (default: 3).')
+    parser.add_argument('-m', '--mode', default='native', help='Diff mode native or custom (default: native).')
 
     args = parser.parse_args()
 
     # get the start time
     st = time.time()
-    compare_dirs(args.dir1, args.dir2, args.output, ignore_file_extensions=args.hash, nlines=args.nlines)
+    compare_dirs(args.dir1, args.dir2, args.output, ignore_file_extensions=args.hash, nlines=args.nlines, diff_mode=args.mode)
     # get the end time
     et = time.time()
     # get the execution time
