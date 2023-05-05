@@ -65,6 +65,7 @@ def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[]):
             position: sticky;
             top: 0;
             word-wrap:break-word;
+            background: #fff;
         }
         .small {
             width: 1.5rem;
