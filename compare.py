@@ -116,15 +116,15 @@ def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[]):
     """
 
     search_bar = """
-    <div style="display: inline-block;">Search:</div>
-    <input type="text" id="searchInput" list="filePaths" onkeyup="filterRows()" placeholder="Search by file path...">
+    <div style="display: inline-block;">Search by file path / extn:</div>
+    <input type="text" id="searchInput" list="filePaths" onkeyup="filterRows()" placeholder="Enter your text here...">
     <datalist id="filePaths"></datalist>
     <script>
         function updateSuggestions(value) {
             let dataList = document.getElementById('filePaths');
             dataList.innerHTML = '';
             let table = document.getElementById('comparisonTable');
-            let tr = table.getElementsByTagName('tr');
+            let tr = document.querySelectorAll('#comparisonTable > tbody > tr');
             
             for (let i = 0; i < tr.length; i++) {
                 let td = tr[i].getElementsByTagName('td')[1];
@@ -141,9 +141,8 @@ def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[]):
         function filterRows() {
             let input = document.getElementById('searchInput');
             let filter = input.value.toUpperCase();
-            let table = document.getElementById('comparisonTable');
-            let tr = table.getElementsByTagName('tr');
-        
+            let tr = document.querySelectorAll('#comparisonTable > tbody > tr');
+
             for (let i = 0; i < tr.length; i++) {
                 let td = tr[i].getElementsByTagName('td')[1];
                 if (td) {
@@ -164,9 +163,11 @@ def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[]):
     """
 
     table_header = f"""
-        <h3>Directory Comparison Report</h3>
-        <button id="expandAllBtn" onclick="expandAll()">Expand All</button>
-        <button id="collapseAllBtn" onclick="collapseAll()">Collapse All</button>
+        <div>
+            <button id="expandAllBtn" onclick="expandAll()">Expand All</button>
+            <button id="collapseAllBtn" onclick="collapseAll()">Collapse All</button>
+        </div>
+        <br>
         <table id='comparisonTable' border='1' class='fixTableHead'>
             <thead>
                 <th class='small'></th>
@@ -249,7 +250,7 @@ def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[]):
 
     stats['total'] = stats['identical'] + stats['changed'] + stats['added'] + stats['removed'] + stats['ignored']
     stats_div = f"""
-        <div id="stats" style="display: flex; justify-content: space-around; align-items: center; margin: 10px 0px; padding: 2px; border: solid 2px black;">
+        <div id="stats" style="display: flex; justify-content: space-around; align-items: center; margin: 10px 0px; padding: 0.5rem; border: solid 2px black;">
             <div style='padding: 10px; font-weight: bold; text-align: center;'>Total: {stats['total']}</div>
             <div style='padding: 10px; border-radius: 5px; font-weight: bold; text-align: center;'>Changed: {stats['changed']}</div>
             <div class='file-added' style='padding: 10px; border-radius: 5px; font-weight: bold; text-align: center;'>Added: {stats['added']}</div>
@@ -315,8 +316,10 @@ def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[]):
                 {style}
             </head>
             <body>
+                <h1 style='text-align: center; width: 100%;'>Directory Comparison Report</h1>
                 {stats_div}
                 {search_bar}
+                <hr>
                 {table_header}
                 {''.join(table_rows)}
                 {table_footer}
