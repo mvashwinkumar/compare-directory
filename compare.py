@@ -112,6 +112,23 @@ def sizeof_fmt(num, suffix="B"):
         num /= 1024.000
     return f"{num:.1f}Yi{suffix}"
 
+def merge_str_diff(str, cdiff):
+    result = ''
+    for i in range(len(str)):
+        if i >= len(cdiff):
+            result += html.escape(str[i])
+        elif cdiff[i] == ' ':
+            result += html.escape(str[i])
+        elif cdiff[i] == '+':
+            result += '<span style="color: white; background-color: green">' + html.escape(str[i]) + '</span>'
+        elif cdiff[i] == '-':
+            result += '<span style="color: white; background-color: red">' + html.escape(str[i]) + '</span>'
+        elif cdiff[i] == '^':
+            result += '<span style="background-color: yellow">' + html.escape(str[i]) + '</span>'
+        else:
+            result += html.escape(str[i])
+    return result
+
 def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[], nlines=3, diff_mode='native'):
     stats = {
         'total': 0,
@@ -308,7 +325,7 @@ def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[], nlines=3, d
                         diff = list(difflib.unified_diff(f1.readlines(), f2.readlines(), fromfile=file_path1, tofile=file_path2, lineterm='', n=nlines)) 
                     last_change_line = None
                     for line in diff:
-                        if line.startswith('---') or line.startswith('+++') or line.endswith('-----\n') or line.endswith('+++++\n'):
+                        if line.startswith('---') or line.startswith('+++'):
                             pass
                         elif line.startswith('@@'):
                             diff1.append(f"<hr><span style='color: grey;'>&nbsp;{html.escape(line)}</span><br>")
@@ -321,14 +338,14 @@ def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[], nlines=3, d
                             last_change_line = line
                             diff1.append(f"{get_ruler_span(line[0], '#ff000080')}<span style='color: red;'>{html.escape(line[1:])}</span>")
                             diff2.append(f'{get_ruler_span()}<span class="unselectable">{html.escape(line[1:])}</span>')
-                        elif line.startswith('?'):
-                            nonBreakSpace = '<span class="unselectable">_</span>'
+                        elif line.startswith('?') and line[1:].strip() != '':
+                            # only used for custom mode
                             if last_change_line[0] == '+':
-                                diff1.append(f'{get_ruler_span()}<span class="unselectable">{html.escape(last_change_line[1:])}</span>')
-                                diff2.append(f"{get_ruler_span(line[0], '#00800080')}<span style='color: green;'>{html.escape(line[1:]).replace(' ', nonBreakSpace)}</span>")
+                                diff2.pop()
+                                diff2.append(f"{get_ruler_span(last_change_line[0], '#008000a0')}<span style='color: green;'>{merge_str_diff(last_change_line[1:], line[1:])}</span>")
                             elif last_change_line[0] == '-':
-                                diff1.append(f"{get_ruler_span(line[0], '#ff000080')}<span style='color: red;'>{html.escape(line[1:]).replace(' ', nonBreakSpace)}</span>")
-                                diff2.append(f'{get_ruler_span()}<span class="unselectable">{html.escape(last_change_line[1:])}</span>')
+                                diff1.pop()
+                                diff1.append(f"{get_ruler_span(last_change_line[0], '#ff000080')}<span style='color: red;'>{merge_str_diff(last_change_line[1:], line[1:])}</span>")
                         else:
                             text = f"{get_ruler_span('=')}{html.escape(line[1:])}"
                             diff1.append(text)
