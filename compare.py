@@ -221,12 +221,12 @@ def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[], nlines=3):
                 table_rows.append(f"<tr class='file-removed'><td class='small'></td><td class='ten'>{file_path1}</td><td class='twenty' colspan='2' style='text-align: center;'><span>Removed from '{dir2}'</span></td></tr>")
                 continue
             
-            if os.path.splitext(file_path1)[1][1:] in ignore_file_extensions:
-                stats['ignored'] += 1
-                table_rows.append(f"<tr class='file-ignored'><td class='small'></td><td class='ten'>{file_path1}</td><td class='twenty'><span>{get_file_properties_table(file_path1, show_md5_hash=True)}</span></td><td class='twenty'><span>{get_file_properties_table(file_path2, show_md5_hash=True)}</span></td></tr>")
-            elif filecmp.cmp(file_path1, file_path2, shallow=False):
+            if filecmp.cmp(file_path1, file_path2, shallow=False):
                 stats['identical'] += 1
                 table_rows.append(f"<tr class='file-no-change'><td class='small'></td><td class='ten'>{file_path1}</td><td class='twenty' colspan='2' style='text-align: center;'><span>No change</span></td></tr>")
+            elif os.path.splitext(file_path1)[1][1:] in ignore_file_extensions:
+                stats['ignored'] += 1
+                table_rows.append(f"<tr class='file-ignored'><td class='small'></td><td class='ten'>{file_path1}</td><td class='twenty'><span>{get_file_properties_table(file_path1, show_md5_hash=True)}</span></td><td class='twenty'><span>{get_file_properties_table(file_path2, show_md5_hash=True)}</span></td></tr>")
             else:
                 stats['changed'] += 1
                 with open(file_path1, encoding='utf8') as f1, open(file_path2, encoding='utf8') as f2:
@@ -280,11 +280,11 @@ def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[], nlines=3):
     stats_div = f"""
         <div id="stats-div" style="display: flex; justify-content: space-around; align-items: center; margin: 10px 0px; padding: 0.75rem; border: solid 2px black;">
             <div style='padding: 10px; font-weight: bold; text-align: center;'>Total: {stats['total']}</div>
-            <button onclick="onfilterByStats(this, 'file-changed')" class='stats-button file-changed'>Changed: {stats['changed']}</button>
+            <button onclick="onfilterByStats(this, 'file-changed')" class='stats-button file-changed'>Text changed: {stats['changed']}</button>
+            <button onclick="onfilterByStats(this, 'file-ignored')" class='stats-button file-ignored'>Hash changed: {stats['ignored']}</button>
             <button onclick="onfilterByStats(this, 'file-added')" class='stats-button file-added'>Added: {stats['added']}</button>
             <button onclick="onfilterByStats(this, 'file-removed')" class='stats-button file-removed'>Removed: {stats['removed']}</button>
             <button onclick="onfilterByStats(this, 'file-no-change')" class='stats-button file-no-change'>Identical: {stats['identical']}</button>
-            <button onclick="onfilterByStats(this, 'file-ignored')" class='stats-button file-ignored'>Ignored: {stats['ignored']}</button>
         </div>
     """
 
@@ -367,19 +367,19 @@ def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[], nlines=3):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='Compare two directories and generate an HTML report',
-        usage='python compare_directories.py path/to/first/directory path/to/second/directory -i war jar -o my_differences.html'
+        usage='python compare_directories.py path/to/first/directory path/to/second/directory --hash war jar -o my_differences.html'
     )
     parser.add_argument('dir1', help='Path to the first directory.')
     parser.add_argument('dir2', help='Path to the second directory.')
     parser.add_argument('-o', '--output', default='differences.html', help='Path to the output file (default: differences.html).')
-    parser.add_argument('-i', '--ignore', nargs='+', default=['war', 'jar'], help='List of file extensions to ignore (default: war jar).')
+    parser.add_argument('--hash', nargs='+', default=['war', 'jar', 'jks'], help='List of file extensions to do MD5 Hash Compare (default: war jar jks).')
     parser.add_argument('-n', '--nlines', type=int, default=3, help='Number of unchanged lines to show above and below diff (default: 3).')
 
     args = parser.parse_args()
 
     # get the start time
     st = time.time()
-    compare_dirs(args.dir1, args.dir2, args.output, ignore_file_extensions=args.ignore, nlines=args.nlines)
+    compare_dirs(args.dir1, args.dir2, args.output, ignore_file_extensions=args.hash, nlines=args.nlines)
     # get the end time
     et = time.time()
     # get the execution time
