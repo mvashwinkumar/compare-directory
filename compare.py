@@ -41,7 +41,7 @@ def sizeof_fmt(num, suffix="B"):
         num /= 1024.000
     return f"{num:.1f}Yi{suffix}"
 
-def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[]):
+def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[], nlines=3):
     stats = {
         'total': 0,
         'ignored': 0,
@@ -53,6 +53,17 @@ def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[]):
 
     style = """
     <style>
+        .stats-button {
+            padding: 10px; 
+            border-radius: 5px; 
+            font-weight: bold; 
+            text-align: center;
+        }
+        .stats-button.active {
+            filter: brightness(75%);
+            border: solid 3px rgba(0, 0, 244, 0.7);
+            box-shadow: rgba(0, 0, 0, 0.02) 0px 1px 3px 0px, rgba(27, 31, 35, 0.15) 0px 0px 0px 1px;
+        }
         table {
             width: 100%;
             table-layout: fixed;
@@ -68,7 +79,7 @@ def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[]):
             background: #fff;
         }
         .small {
-            width: 1.5rem;
+            width: 2rem;
             vertical-align: top;
             text-align: center;
         }
@@ -87,6 +98,9 @@ def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[]):
             word-wrap:break-word
         }
 
+        .file-changed {
+            background: #ffffff;
+        }
         .file-ignored {
             background: #8080808a;
         }
@@ -120,7 +134,19 @@ def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[]):
     <input type="text" id="searchInput" list="filePaths" onkeyup="filterRows()" placeholder="Enter your text here...">
     <datalist id="filePaths"></datalist>
     <script>
-        function updateSuggestions(value) {
+        function getActiveStats() {
+            let statsDiv = document.getElementById('stats-div');
+            let buttons = statsDiv.getElementsByTagName('button');
+            let activeClasses = [];
+            for (let i = 0; i < buttons.length; i++) {
+                if (buttons[i].classList.contains('active')) {
+                    activeClasses.push(buttons[i].classList[1]);
+                }
+            }
+            return activeClasses;
+        }
+
+        function updateSuggestions(value, activeStats) {
             let dataList = document.getElementById('filePaths');
             dataList.innerHTML = '';
             let table = document.getElementById('comparisonTable');
@@ -128,9 +154,10 @@ def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[]):
             
             for (let i = 0; i < tr.length; i++) {
                 let td = tr[i].getElementsByTagName('td')[1];
+                let showByStatsFilter = activeStats.length > 0 ? activeStats.includes(tr[i].classList[0]): true;
                 if (td) {
                     let txtValue = td.textContent || td.innerText;
-                    if (txtValue.toUpperCase().includes(value.toUpperCase())) {
+                    if (showByStatsFilter && txtValue.toUpperCase().includes(value.toUpperCase())) {
                         let option = document.createElement('option');
                         option.value = txtValue.trim();
                         dataList.appendChild(option);
@@ -140,14 +167,17 @@ def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[]):
         }
         function filterRows() {
             let input = document.getElementById('searchInput');
-            let filter = input.value.toUpperCase();
+            let filterText = input.value.toUpperCase();
+            let activeStats = getActiveStats();
+
             let tr = document.querySelectorAll('#comparisonTable > tbody > tr');
 
             for (let i = 0; i < tr.length; i++) {
                 let td = tr[i].getElementsByTagName('td')[1];
+                let showByStatsFilter = activeStats.length > 0 ? activeStats.includes(tr[i].classList[0]): true;
                 if (td) {
                     let txtValue = td.textContent || td.innerText;
-                    if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                    if (showByStatsFilter && txtValue.toUpperCase().indexOf(filterText) > -1) {
                         tr[i].style.display = '';
                     } else {
                         tr[i].style.display = 'none';
@@ -156,7 +186,7 @@ def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[]):
             }
 
             if (input.value.length >= 3) {
-                updateSuggestions(input.value);
+                updateSuggestions(input.value, activeStats);
             }
         }
     </script>
@@ -201,7 +231,7 @@ def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[]):
                 stats['changed'] += 1
                 with open(file_path1, encoding='utf8') as f1, open(file_path2, encoding='utf8') as f2:
                     diff1, diff2 = [], []
-                    diff = list(difflib.unified_diff(f1.readlines(), f2.readlines(), fromfile=file_path1, tofile=file_path2, lineterm='', n=3))
+                    diff = list(difflib.unified_diff(f1.readlines(), f2.readlines(), fromfile=file_path1, tofile=file_path2, lineterm='', n=nlines))
                     for line in diff:
                         if line.startswith('---') or line.startswith('+++'):
                             pass
@@ -219,11 +249,9 @@ def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[]):
                             diff1.append(text)
                             diff2.append(text)
                     table_rows.append(f"""
-                    <tr>
+                    <tr class='file-changed'>
                         <td class='small'><span class="collapse-icon" onclick="toggleRow(this.parentElement.parentElement, this)" style="cursor:pointer;">[-]</span></td>
-                        <td class='ten'>
-                            {file_path1}
-                        </td>
+                        <td class='ten'>{file_path1}</td>
                         <td class='twenty'>
                             {get_file_properties_table(file_path1)}
                             {'<br>'.join(diff1)}
@@ -250,18 +278,23 @@ def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[]):
 
     stats['total'] = stats['identical'] + stats['changed'] + stats['added'] + stats['removed'] + stats['ignored']
     stats_div = f"""
-        <div id="stats" style="display: flex; justify-content: space-around; align-items: center; margin: 10px 0px; padding: 0.5rem; border: solid 2px black;">
+        <div id="stats-div" style="display: flex; justify-content: space-around; align-items: center; margin: 10px 0px; padding: 0.75rem; border: solid 2px black;">
             <div style='padding: 10px; font-weight: bold; text-align: center;'>Total: {stats['total']}</div>
-            <div style='padding: 10px; border-radius: 5px; font-weight: bold; text-align: center;'>Changed: {stats['changed']}</div>
-            <div class='file-added' style='padding: 10px; border-radius: 5px; font-weight: bold; text-align: center;'>Added: {stats['added']}</div>
-            <div class='file-removed' style='padding: 10px; border-radius: 5px; font-weight: bold; text-align: center;'>Removed: {stats['removed']}</div>
-            <div class='file-no-change' style='padding: 10px; border-radius: 5px; font-weight: bold; text-align: center;'>Identical: {stats['identical']}</div>
-            <div class='file-ignored' style='padding: 10px; border-radius: 5px; font-weight: bold; text-align: center;'>Ignored: {stats['ignored']}</div>
+            <button onclick="onfilterByStats(this, 'file-changed')" class='stats-button file-changed'>Changed: {stats['changed']}</button>
+            <button onclick="onfilterByStats(this, 'file-added')" class='stats-button file-added'>Added: {stats['added']}</button>
+            <button onclick="onfilterByStats(this, 'file-removed')" class='stats-button file-removed'>Removed: {stats['removed']}</button>
+            <button onclick="onfilterByStats(this, 'file-no-change')" class='stats-button file-no-change'>Identical: {stats['identical']}</button>
+            <button onclick="onfilterByStats(this, 'file-ignored')" class='stats-button file-ignored'>Ignored: {stats['ignored']}</button>
         </div>
     """
 
     script_tag = """
         <script>
+            function onfilterByStats($this, className) {
+                $this.classList.toggle('active')
+                filterRows()
+            }
+
             function toggleRow(row, span) {
                 let cells = row.getElementsByTagName('td');
                 for (let i = 2; i < cells.length; i++) {
@@ -340,12 +373,13 @@ if __name__ == "__main__":
     parser.add_argument('dir2', help='Path to the second directory.')
     parser.add_argument('-o', '--output', default='differences.html', help='Path to the output file (default: differences.html).')
     parser.add_argument('-i', '--ignore', nargs='+', default=['war', 'jar'], help='List of file extensions to ignore (default: war jar).')
+    parser.add_argument('-n', '--nlines', type=int, default=3, help='Number of unchanged lines to show above and below diff (default: 3).')
 
     args = parser.parse_args()
 
     # get the start time
     st = time.time()
-    compare_dirs(args.dir1, args.dir2, args.output, ignore_file_extensions=args.ignore)
+    compare_dirs(args.dir1, args.dir2, args.output, ignore_file_extensions=args.ignore, nlines=args.nlines)
     # get the end time
     et = time.time()
     # get the execution time
