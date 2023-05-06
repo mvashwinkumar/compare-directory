@@ -1,10 +1,10 @@
 import os
 import filecmp
-import difflib
 import time
 import html
 import argparse
 import hashlib
+import csv
 
 from difflib import SequenceMatcher
 from difflib import Differ
@@ -129,7 +129,7 @@ def merge_str_diff(str, cdiff):
             result += html.escape(str[i])
     return result
 
-def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[], nlines=3, diff_mode='native'):
+def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[], nlines=3):
     stats = {
         'total': 0,
         'ignored': 0,
@@ -319,10 +319,8 @@ def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[], nlines=3, d
                 stats['changed'] += 1
                 with open(file_path1, encoding='utf8') as f1, open(file_path2, encoding='utf8') as f2:
                     diff1, diff2 = [], []
-                    if diff_mode == 'custom':
-                        diff = list(UnifiedDiffer().unified_diff(f1.readlines(), f2.readlines(), fromfile=file_path1, tofile=file_path2, lineterm='', n=nlines))
-                    else:
-                        diff = list(difflib.unified_diff(f1.readlines(), f2.readlines(), fromfile=file_path1, tofile=file_path2, lineterm='', n=nlines)) 
+                    diff = list(UnifiedDiffer().unified_diff(f1.readlines(), f2.readlines(), fromfile=file_path1, tofile=file_path2, lineterm='', n=nlines))
+                    # diff = list(difflib.unified_diff(f1.readlines(), f2.readlines(), fromfile=file_path1, tofile=file_path2, lineterm='', n=nlines)) 
                     last_change_line = None
                     for line in diff:
                         if line.startswith('---') or line.startswith('+++'):
@@ -466,25 +464,54 @@ def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[], nlines=3, d
     with open(output_file, 'w') as f:
         f.write(html_output)
 
+def process_csv(csv_file, ignore_file_extensions=[], nlines=3):
+    with open(csv_file, newline='') as csvfile:
+        csv_reader = csv.reader(csvfile)
+        next(csv_reader)  # Skip the first row (labels)
+        for row in csv_reader:
+            if len(row) != 3:
+                raise ValueError('Invalid CSV format. Each row should have exactly 3 values: dir1, dir2, output.')
+            dir1, dir2, output = row
+            print(f'Comparing {dir1} and {dir2} and generating {output}')
+            # get the start time
+            st = time.time()
+            compare_dirs(dir1, dir2, output, ignore_file_extensions, nlines)
+            # get the end time
+            et = time.time()
+            # get the execution time
+            elapsed_time = et - st
+            print(f'Execution time for {output}:', elapsed_time, 'seconds')
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description='Compare two directories and generate an HTML report',
-        usage='python compare_directories.py path/to/first/directory path/to/second/directory --hash war jar -o my_differences.html'
+        description='Compare two directories and generate an HTML report. Provide either dir1 and dir2 or a CSV file with multiple sets of arguments (dir1, dir2, output).',
+        usage='''python compare_directories.py path/to/first/directory path/to/second/directory --hash war jar -o my_differences.html
+              OR
+              python compare_directories.py --csv path/to/csv_file.csv --hash war jar -n 3
+              Example CSV Format:
+              dir1,dir2,output
+              path/to/first/directory,path/to/second/directory,my_differences.html'''
     )
-    parser.add_argument('dir1', help='Path to the first directory.')
-    parser.add_argument('dir2', help='Path to the second directory.')
+    parser.add_argument('--csv', help='Path to the CSV file containing multiple sets of arguments.')
+    parser.add_argument('dir1', nargs='?', help='Path to the first directory.')
+    parser.add_argument('dir2', nargs='?', help='Path to the second directory.')
     parser.add_argument('-o', '--output', default='differences.html', help='Path to the output file (default: differences.html).')
     parser.add_argument('--hash', nargs='+', default=['war', 'jar', 'jks'], help='List of file extensions to do MD5 Hash Compare (default: war jar jks).')
     parser.add_argument('-n', '--nlines', type=int, default=3, help='Number of unchanged lines to show above and below diff (default: 3).')
-    parser.add_argument('-m', '--mode', default='native', help='Diff mode native or custom (default: native).')
 
     args = parser.parse_args()
 
     # get the start time
-    st = time.time()
-    compare_dirs(args.dir1, args.dir2, args.output, ignore_file_extensions=args.hash, nlines=args.nlines, diff_mode=args.mode)
+    tst = time.time()
+
+    if args.csv:
+        process_csv(args.csv, args.hash, args.nlines)
+    else:
+        if not args.dir1 or not args.dir2:
+            parser.error("Following arguments are required: dir1, dir2")
+        compare_dirs(args.dir1, args.dir2, args.output, ignore_file_extensions=args.hash, nlines=args.nlines)
     # get the end time
-    et = time.time()
+    tet = time.time()
     # get the execution time
-    elapsed_time = et - st
-    print('Execution time:', elapsed_time, 'seconds')
+    total_elapsed_time = tet - tst
+    print('Total Execution time:', total_elapsed_time, 'seconds')
