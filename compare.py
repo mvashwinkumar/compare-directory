@@ -162,8 +162,8 @@ def generate_file_path_td(file_path, file_tags_dict):
     
     return file_path_td
 
-def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[], nlines=3, tags=[]):
-    tag_files_dict = parse_tag_file_list(tags)
+def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[], nlines=3, tags_csv=''):
+    tag_files_dict = process_tags_csv(tags_csv)
     all_tags = set()
     for tag, file_list in tag_files_dict.items():
         all_tags.add(tag)
@@ -582,17 +582,19 @@ def create_index_html(html_files, index):
                         <th>No.</th>
                         <th>Old Dir</th>
                         <th>New Dir</th>
+                        <th>Tags CSV</th>
                         <th>Diff HTML</th>
                     </tr>
         """
         html_files_tr = ''
         for i, html_file in enumerate(html_files, start=1):
-            (dir1, dir2, output) = html_file
+            (dir1, dir2, output, tags_csv) = html_file
             html_files_tr += f"""
                     <tr>
                         <td>{i}</td>
                         <td>{dir1}</td>
                         <td>{dir2}</td>
+                        <td>{tags_csv or '-'}</td>
                         <td><a href="{output}">{output}</a></td>
                     </tr>
             """
@@ -603,25 +605,49 @@ def create_index_html(html_files, index):
         """
         index_file.write(html_top + html_files_tr + html_bottom)
 
+def process_tags_csv(csv_file):
+    tag_files_dict = {}
+
+    if not os.path.exists(csv_file):
+        return tag_files_dict
+
+    with open(csv_file, newline='') as csvfile:
+        csv_reader = csv.reader(csvfile)
+        next(csv_reader) # Skip the first row (labels)
+        for row in csv_reader:
+            if len(row) != 2:
+                raise ValueError('Invalid CSV format. Each row should have exactly 2 values: tag, file_path.')
+            tag, file_path = row
+            if tag in tag_files_dict:
+                tag_files_dict[tag].append(file_path)
+            else:
+                tag_files_dict[tag] = [file_path]
+    return tag_files_dict
+
 def process_csv(csv_file, ignore_file_extensions=[], nlines=3, index='differences_index.html'):
     html_files = []
     with open(csv_file, newline='') as csvfile:
         csv_reader = csv.reader(csvfile)
         next(csv_reader)  # Skip the first row (labels)
         for row in csv_reader:
-            if len(row) != 4:
-                raise ValueError('Invalid CSV format. Each row should have exactly 4 values: dir1, dir2, output, tags.')
-            dir1, dir2, output, tags = row
+            dir1 = row[0].strip()
+            dir2 = row[1].strip()
+            output = row[2].strip()
+            tags_csv = row[3].strip() if len(row) > 3 else '' # optional
+
+            if not dir1 or not dir2 or not output:
+                raise ValueError('Invalid CSV format. dir1, dir2 and output are required')
+            
             print(f'Comparing {dir1} and {dir2} and generating {output}')
             # get the start time
             st = time.time()
-            compare_dirs(dir1, dir2, output, ignore_file_extensions, nlines, tags=tags.split(';'))
+            compare_dirs(dir1, dir2, output, ignore_file_extensions, nlines, tags_csv)
             # get the end time
             et = time.time()
             # get the execution time
             elapsed_time = et - st
             print(f'Execution time for {output}:', elapsed_time, 'seconds')
-            html_files.append((dir1, dir2, output))
+            html_files.append((dir1, dir2, output, tags_csv))
     create_index_html(html_files, index)
 
 if __name__ == "__main__":
@@ -629,13 +655,13 @@ if __name__ == "__main__":
         description='Compare two directories and generate an HTML report. Provide either dir1 and dir2 or a CSV file with multiple sets of arguments (dir1, dir2, output).',
         usage='''
     ------------------------------------
-    python compare_directories.py path/to/first/directory path/to/second/directory --hash war jar --tags tag1:/sub-path/to/filename1,/sub-path/to/filename2 tag2:/sub-path/to/filename2,/sub-path/to/filename3 -o my_differences.html
+    python compare_directories.py path/to/first/directory path/to/second/directory --hash war jar --tags-csv path/to/tags_csv1.csv -n 3 -o my_differences.html
         (or)
     python compare_directories.py --csv path/to/csv_file.csv --hash war jar -n 3 --index differences_index.html
     ------------------------------------
     CSV Format:
-    dir1,dir2,output,tags
-    path/to/first/directory,path/to/second/directory,my_differences.html,tag1:/sub-path/to/filename1,/sub-path/to/filename2;tag2:/sub-path/to/filename2,/sub-path/to/filename3'''
+    dir1,dir2,output,tags_csv
+    path/to/first/directory,path/to/second/directory,my_differences.html,path/to/tags_csv1.csv'''
     )
     parser.add_argument('--csv', help='Path to the CSV file containing multiple sets of arguments.')
     parser.add_argument('--index', default='differences_index.html', help='Path to the output file (default: differences_index.html).')
@@ -643,7 +669,7 @@ if __name__ == "__main__":
     parser.add_argument('dir2', nargs='?', help='Path to the second directory.')
     parser.add_argument('-o', '--output', default='differences.html', help='Path to the output file (default: differences.html).')
     parser.add_argument('--hash', nargs='+', default=['war', 'jar', 'jks'], help='List of file extensions to do MD5 Hash Compare (default: war jar jks).')
-    parser.add_argument('--tags', nargs='+', default=[], help='List of tags to associate with matching file paths in format: tag1:/sub-path/to/filename1,/sub-path/to/filename2 (default: []).')
+    parser.add_argument('--tags-csv', default='', help='CSV File containing list of tags for matching file paths (default: '').')
     parser.add_argument('-n', '--nlines', type=int, default=3, help='Number of unchanged lines to show above and below diff (default: 3).')
 
     args = parser.parse_args()
@@ -656,7 +682,7 @@ if __name__ == "__main__":
     else:
         if not args.dir1 or not args.dir2:
             parser.error("Following arguments are required: dir1, dir2")
-        compare_dirs(args.dir1, args.dir2, args.output, ignore_file_extensions=args.hash, nlines=args.nlines, tags=args.tags)
+        compare_dirs(args.dir1, args.dir2, args.output, ignore_file_extensions=args.hash, nlines=args.nlines, tags_csv=args.tags_csv)
     # get the end time
     tet = time.time()
     # get the execution time
