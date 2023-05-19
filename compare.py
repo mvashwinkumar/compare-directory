@@ -170,7 +170,7 @@ def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[], nlines=3, t
     
     file_tags_dict = transform_file_tags_dict(tag_files_dict)
 
-    tag_buttons_html_list = [f"<button onclick='onfilterByTag(this, \"{tag}\")' class='stats-button tag-button'>{tag}</button>" for tag in all_tags]
+    tag_buttons_html_list = [f"<button onclick='onfilterByTag(this, \"{tag}\")' class='stats-button tags'>{tag}</button>" for tag in all_tags]
     tags_filter_div = f"""
         <div id="tags-filter-div" style="display: flex; justify-content: space-around; align-items: center; margin: 10px 0px; padding: 0.75rem; border: solid 2px black;">
             <div style='padding: 10px; font-weight: bold; text-align: center;'>Tags Available</div>
@@ -189,6 +189,12 @@ def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[], nlines=3, t
 
     style = """
     <style>
+        button {
+            cursor: pointer;
+        }
+        button:hover {
+            filter: brightness(85%);
+        }
         .stats-button {
             padding: 10px; 
             border-radius: 5px; 
@@ -199,6 +205,24 @@ def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[], nlines=3, t
             filter: brightness(75%);
             border: solid 3px rgba(0, 0, 244, 0.7);
             box-shadow: rgba(0, 0, 0, 0.02) 0px 1px 3px 0px, rgba(27, 31, 35, 0.15) 0px 0px 0px 1px;
+        }
+        .tags {
+            padding: 5px;
+            border-radius: 5px;
+            background: #4f0054e0;
+            color: white;
+        }
+        .view-action-button {
+            padding: 10px;
+            border-radius: 5px;
+            font-weight: bold;
+            text-align: center;
+            margin-right: 10px;
+        }
+        #searchInput {
+            width: 97.5%;
+            margin: 10px 0px;
+            padding: 5px;
         }
         table {
             width: 100%;
@@ -225,10 +249,6 @@ def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[], nlines=3, t
         .ten .tags {
             display: inline-block;
             margin-left: 10px;
-            padding: 5px;
-            border-radius: 5px;
-            background: #4f0054e0;
-            color: white;
         }
         .twenty {
             width: 37.5%;
@@ -274,15 +294,20 @@ def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[], nlines=3, t
     """
 
     search_bar = """
-    <div style="display: inline-block;">Search by file path / extn:</div>
-    <input type="text" id="searchInput" list="filePaths" onkeyup="filterRows()" placeholder="Enter your text here...">
-    <datalist id="filePaths"></datalist>
+    <div style="display: block; width: 47.5%">
+        <div style="display: inline-block; width: 200px">Search by file path / extn:</div>
+        <input type="text" id="searchInput" list="filePaths" onkeyup="filterRows()" placeholder="Enter your text here...">
+        <datalist id="filePaths"></datalist>
+    </div>
     """
 
     table_header = f"""
-        <div>
-            <button id="expandAllBtn" onclick="expandAll()">Expand All</button>
-            <button id="collapseAllBtn" onclick="collapseAll()">Collapse All</button>
+        <div style="display: flex; justify-content: space-between">
+            <div style="display: flex; align-items: center; width: 300px">
+                <button id="expandAllBtn" class="view-action-button" onclick="expandAll()">Expand All</button>
+                <button id="collapseAllBtn" class="view-action-button" onclick="collapseAll()">Collapse All</button>
+            </div>
+            {search_bar}
         </div>
         <br>
         <table id='comparisonTable' border='1' class='fixTableHead'>
@@ -555,7 +580,6 @@ def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[], nlines=3, t
                 <h1 style='text-align: center; width: 100%;'>Directory Comparison Report</h1>
                 {stats_div}
                 {tags_filter_div}
-                {search_bar}
                 <hr>
                 {table_header}
                 {''.join(table_rows)}
