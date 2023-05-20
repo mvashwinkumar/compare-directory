@@ -627,7 +627,7 @@ def create_index_html(html_files, index):
 
         # create a row for each group
         for gp in groups:
-            html_table_rows.append(f"<tr><td colspan='6' style='text-align: left; margin-left: 5px; font-weight: bold;'>{gp}</td></tr>")
+            html_table_rows.append(f"<tr><td colspan='6' style='text-align: left; padding: 5px; font-weight: bold;'>{gp}</td></tr>")
             
             # get all html_files in the group
             html_files_in_group = [html_file for html_file in html_files if html_file[4] == gp] # 4 is the index of group in html_file tuple
