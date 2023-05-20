@@ -592,6 +592,8 @@ def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[], nlines=3, t
     with open(output_file, 'w') as f:
         f.write(html_output)
 
+    return stats
+
 def create_index_html(html_files, index):
     with open(index, 'w') as index_file:
         html_top = f"""
@@ -601,33 +603,63 @@ def create_index_html(html_files, index):
                 </head>
             <body>
                 <h1>Directory Comparison Index</h1>
+                <hr>
+                <div>Legend: C - Total, T - Text changed, H - Hash changed, A - Added, R - Removed, I - Identical</div>
+                <br>
                 <table border="1">
                     <tr>
-                        <th>No.</th>
                         <th>Old Dir</th>
                         <th>New Dir</th>
                         <th>Tags CSV</th>
+                        <th>Stats</th>
                         <th>Diff HTML</th>
                     </tr>
         """
-        html_files_tr = ''
-        for i, html_file in enumerate(html_files, start=1):
-            (dir1, dir2, output, tags_csv) = html_file
-            html_files_tr += f"""
+
+        html_table_rows = []
+        # get all groups from html_files
+        groups = set()
+        for html_file in html_files:
+            (dir1, dir2, stats, output, group, tags_csv) = html_file
+            groups.add(group)
+        # sort the groups
+        groups = sorted(groups)
+
+        # create a row for each group
+        for gp in groups:
+            html_table_rows.append(f"<tr><td colspan='6' style='text-align: left; margin-left: 5px; font-weight: bold;'>{gp}</td></tr>")
+            
+            # get all html_files in the group
+            html_files_in_group = [html_file for html_file in html_files if html_file[4] == gp] # 4 is the index of group in html_file tuple
+
+            # create a row for each html_file in the group
+            for html_file in html_files_in_group:
+                (dir1, dir2, stats, output, group, tags_csv) = html_file
+                html_table_rows.append(f"""
                     <tr>
-                        <td>{i}</td>
                         <td>{dir1}</td>
                         <td>{dir2}</td>
                         <td>{tags_csv or '-'}</td>
+                        <td>
+                            <div style='display: flex; justify-content: space-around'>
+                                <div style='width: 65px; text-align: center'>C: {stats['total']}</div>
+                                <div style='width: 65px; text-align: center'>T: {stats['changed']}</div>
+                                <div style='width: 65px; text-align: center'>H: {stats['ignored']}</div>
+                                <div style='width: 65px; text-align: center'>A: {stats['added']}</div>
+                                <div style='width: 65px; text-align: center'>R: {stats['removed']}</div>
+                                <div style='width: 65px; text-align: center'>I: {stats['identical']}</div>
+                            </div>
+                        </td>
                         <td><a href="{output}">{output}</a></td>
                     </tr>
-            """
+                """)
+
         html_bottom = """
                 </table>
             </body>
         </html>
         """
-        index_file.write(html_top + html_files_tr + html_bottom)
+        index_file.write(html_top + ''.join(html_table_rows) + html_bottom)
 
 def process_tags_csv(csv_file):
     tag_files_dict = {}
@@ -657,7 +689,8 @@ def process_csv(csv_file, ignore_file_extensions=[], nlines=3, index='difference
             dir1 = row[0].strip()
             dir2 = row[1].strip()
             output = row[2].strip()
-            tags_csv = row[3].strip() if len(row) > 3 else '' # optional
+            group = row[3].strip() if len(row) > 3 else ''
+            tags_csv = row[4].strip() if len(row) > 4 else '' # optional
 
             if not dir1 or not dir2 or not output:
                 raise ValueError('Invalid CSV format. dir1, dir2 and output are required')
@@ -665,13 +698,13 @@ def process_csv(csv_file, ignore_file_extensions=[], nlines=3, index='difference
             print(f'Comparing {dir1} and {dir2} and generating {output}')
             # get the start time
             st = time.time()
-            compare_dirs(dir1, dir2, output, ignore_file_extensions, nlines, tags_csv)
+            stats = compare_dirs(dir1, dir2, output, ignore_file_extensions, nlines, tags_csv)
             # get the end time
             et = time.time()
             # get the execution time
             elapsed_time = et - st
             print(f'Execution time for {output}:', elapsed_time, 'seconds')
-            html_files.append((dir1, dir2, output, tags_csv))
+            html_files.append((dir1, dir2, stats, output, group, tags_csv))
     create_index_html(html_files, index)
 
 if __name__ == "__main__":
@@ -684,8 +717,8 @@ if __name__ == "__main__":
     python compare_directories.py --csv path/to/csv_file.csv --hash war jar -n 3 --index differences_index.html
     ------------------------------------
     CSV Format:
-    dir1,dir2,output,tags_csv
-    path/to/first/directory,path/to/second/directory,my_differences.html,path/to/tags_csv1.csv'''
+    dir1,dir2,output,group,tags_csv
+    path/to/first/directory,path/to/second/directory,my_differences.html,group_name,path/to/tags_csv1.csv'''
     )
     parser.add_argument('--csv', help='Path to the CSV file containing multiple sets of arguments.')
     parser.add_argument('--index', default='differences_index.html', help='Path to the output file (default: differences_index.html).')
@@ -706,7 +739,8 @@ if __name__ == "__main__":
     else:
         if not args.dir1 or not args.dir2:
             parser.error("Following arguments are required: dir1, dir2")
-        compare_dirs(args.dir1, args.dir2, args.output, ignore_file_extensions=args.hash, nlines=args.nlines, tags_csv=args.tags_csv)
+        stats = compare_dirs(args.dir1, args.dir2, args.output, ignore_file_extensions=args.hash, nlines=args.nlines, tags_csv=args.tags_csv)
+        print(stats)
     # get the end time
     tet = time.time()
     # get the execution time
