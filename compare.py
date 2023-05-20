@@ -465,7 +465,7 @@ def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[], nlines=3, t
                 const [expCollapseTd, filePathTd] = tr.getElementsByTagName('td');
                 const [, ...tagsSpanList] = filePathTd.getElementsByTagName('span');
                 const rowTags = tagsSpanList.map(span => span.textContent);
-                const showByTagsFilter = activeTags.length > 0 ? activeTags.every(tag => rowTags.includes(tag)): true;
+                const showByTagsFilter = activeTags.length > 0 ? activeTags.some(tag => rowTags.includes(tag)): true;
 
                 return showByStatsFilter && showByTagsFilter;
             }
