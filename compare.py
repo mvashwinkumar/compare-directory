@@ -146,12 +146,13 @@ def transform_file_tags_dict(tag_files_dict):
                 file_tags_dict[file] = [tag]
     return file_tags_dict
 
-def generate_file_path_td(file_path, file_tags_dict):
-    file_path_td = f"<td class='ten'><span class='content'>{file_path}</span></td>"
+def generate_file_path_td(dir1, file_path1, dir2, file_path2, file_tags_dict):
+    relative_file_path = os.path.relpath(file_path1, dir1)
+    file_path_td = f"<td class='ten'><span class='content' data-fp1='{file_path1}' data-fp2='{file_path2}'>{relative_file_path}</span></td>"
     tags = []
     for file_path_key, tag_list in file_tags_dict.items():
         # check if file_path_key is equal to file_path (os independent)
-        if os.path.normpath(file_path_key) == os.path.normpath(file_path):
+        if os.path.normpath(file_path_key) == os.path.normpath(relative_file_path):
             tags.extend(tag_list)
     file_tags = set()
     for tag in tags:
@@ -159,11 +160,13 @@ def generate_file_path_td(file_path, file_tags_dict):
 
     if len(file_tags) > 0:
         file_tags_span_list = [f"<span class='tags'>{tag}</span>" for tag in file_tags]
-        file_path_td = f"<td class='ten'><span class='content'>{os.path.normpath(file_path)}</span>{''.join(file_tags_span_list)}</td>"
+        file_path_td = f"<td class='ten'><span class='content' data-fp1='{file_path1}' data-fp2='{file_path2}'>{os.path.normpath(relative_file_path)}</span>{''.join(file_tags_span_list)}</td>"
     
     return file_path_td
 
 def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[], nlines=3, tags_csv=''):
+    dir1 = os.path.normpath(dir1)
+    dir2 = os.path.normpath(dir2)
     tag_files_dict = process_tags_csv(tags_csv)
     all_tags = set()
     for tag, file_list in tag_files_dict.items():
@@ -329,7 +332,7 @@ def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[], nlines=3, t
             file_path1 = os.path.join(root1, file1)
             file_path2 = os.path.join(root2, file2)
 
-            file_path_td = generate_file_path_td(file_path1, file_tags_dict)
+            file_path_td = generate_file_path_td(dir1, file_path1, dir2, file_path2, file_tags_dict)
 
             if not os.path.exists(file_path2):
                 stats['removed'] += 1
@@ -397,7 +400,7 @@ def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[], nlines=3, t
             file_path1 = os.path.join(root1, file1)
             file_path2 = os.path.join(root2, file2)
 
-            file_path_td = generate_file_path_td(file_path2, file_tags_dict)
+            file_path_td = generate_file_path_td(dir1, file_path1, dir2, file_path2, file_tags_dict)
 
             if not os.path.exists(file_path1):
                 stats['added'] += 1
