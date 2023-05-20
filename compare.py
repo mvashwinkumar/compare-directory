@@ -150,7 +150,8 @@ def generate_file_path_td(file_path, file_tags_dict):
     file_path_td = f"<td class='ten'><span class='content'>{file_path}</span></td>"
     tags = []
     for file_path_key, tag_list in file_tags_dict.items():
-        if file_path_key in file_path:
+        # check if file_path_key is equal to file_path (os independent)
+        if os.path.normpath(file_path_key) == os.path.normpath(file_path):
             tags.extend(tag_list)
     file_tags = set()
     for tag in tags:
@@ -158,7 +159,7 @@ def generate_file_path_td(file_path, file_tags_dict):
 
     if len(file_tags) > 0:
         file_tags_span_list = [f"<span class='tags'>{tag}</span>" for tag in file_tags]
-        file_path_td = f"<td class='ten'><span class='content'>{file_path}</span>{''.join(file_tags_span_list)}</td>"
+        file_path_td = f"<td class='ten'><span class='content'>{os.path.normpath(file_path)}</span>{''.join(file_tags_span_list)}</td>"
     
     return file_path_td
 
@@ -449,7 +450,7 @@ def compare_dirs(dir1, dir2, output_file, ignore_file_extensions=[], nlines=3, t
             function getFilePathFromTableRow(tr) {
                 const [expCollapseTd, filePathTd] = tr.getElementsByTagName('td');
                 if (filePathTd) {
-                    const [filePathSpan, tagsSpan] = filePathTd.getElementsByTagName('span');
+                    const [filePathSpan] = filePathTd.getElementsByTagName('span');
                     return filePathSpan.textContent || filePathSpan.innerText;
                 }
                 return '';
@@ -635,19 +636,20 @@ def create_index_html(html_files, index):
             # create a row for each html_file in the group
             for html_file in html_files_in_group:
                 (dir1, dir2, stats, output, group, tags_csv) = html_file
+                tags_csv_file_name_without_extn = os.path.splitext(os.path.basename(tags_csv))[0] if tags_csv else '-'
                 html_table_rows.append(f"""
                     <tr>
                         <td>{dir1}</td>
                         <td>{dir2}</td>
-                        <td>{tags_csv or '-'}</td>
+                        <td style='text-align: center'>{tags_csv_file_name_without_extn}</td>
                         <td>
                             <div style='display: flex; justify-content: space-around'>
-                                <div style='width: 65px; text-align: center'>C: {stats['total']}</div>
-                                <div style='width: 65px; text-align: center'>T: {stats['changed']}</div>
-                                <div style='width: 65px; text-align: center'>H: {stats['ignored']}</div>
-                                <div style='width: 65px; text-align: center'>A: {stats['added']}</div>
-                                <div style='width: 65px; text-align: center'>R: {stats['removed']}</div>
-                                <div style='width: 65px; text-align: center'>I: {stats['identical']}</div>
+                                <div style='width: 50px; text-align: center'>C: {stats['total']}</div>
+                                <div style='width: 50px; text-align: center'>T: {stats['changed']}</div>
+                                <div style='width: 50px; text-align: center'>H: {stats['ignored']}</div>
+                                <div style='width: 50px; text-align: center'>A: {stats['added']}</div>
+                                <div style='width: 50px; text-align: center'>R: {stats['removed']}</div>
+                                <div style='width: 50px; text-align: center'>I: {stats['identical']}</div>
                             </div>
                         </td>
                         <td><a href="{output}">{output}</a></td>
@@ -718,7 +720,13 @@ if __name__ == "__main__":
     ------------------------------------
     CSV Format:
     dir1,dir2,output,group,tags_csv
-    path/to/first/directory,path/to/second/directory,my_differences.html,group_name,path/to/tags_csv1.csv'''
+    path/to/first/directory,path/to/second/directory,my_differences.html,group_name,path/to/tags_csv1.csv
+    
+    Tags CSV Format:
+    tag,file_path
+    tag1,path/to/file1
+    tag2,path/to/file2
+    '''
     )
     parser.add_argument('--csv', help='Path to the CSV file containing multiple sets of arguments.')
     parser.add_argument('--index', default='differences_index.html', help='Path to the output file (default: differences_index.html).')
